@@ -22,7 +22,7 @@ class CoHereProvider(LLMInterface):
         self.embedding_size = None
 
         self.client = cohere.Client(api_key=self.api_key)
-
+        self.enums=CoHereEnums
         self.logger = logging.getLogger(__name__)
 
     def set_generation_model(self, model_id: str):
@@ -72,9 +72,9 @@ class CoHereProvider(LLMInterface):
             self.logger.error("Embedding model for CoHere was not set")
             return None
         
-        input_type = CoHereEnums.DOCUMENT
-        if document_type == DocumentTypeEnum.QUERY:
-            input_type = CoHereEnums.QUERY
+        input_type = CoHereEnums.DOCUMENT.value
+        if document_type == DocumentTypeEnum.QUERY.value:
+            input_type = CoHereEnums.QUERY.value
 
         response = self.client.embed(
             model = self.embedding_model_id,
@@ -83,11 +83,20 @@ class CoHereProvider(LLMInterface):
             embedding_types=['float'],
         )
 
-        if not response or not response.embeddings or not response.embeddings.float:
-            self.logger.error("Error while embedding text with CoHere")
+        # Fixed: Avoid boolean checks on response object, directly access what we need
+        try:
+            # Directly access the float embeddings without boolean checks on response
+            float_embeddings = response.embeddings.float
+            if len(float_embeddings) == 0:
+                self.logger.error("No float embeddings returned from CoHere")
+                return None
+            return float_embeddings[0]
+        except (AttributeError, TypeError, IndexError) as e:
+            self.logger.error(f"Error accessing embeddings from CoHere response: {e}")
             return None
-        
-        return response.embeddings.float[0]
+        except Exception as e:
+            self.logger.error(f"Unexpected error while processing CoHere embeddings: {e}")
+            return None
     
     def construct_prompt(self, prompt: str, role: str):
         return {

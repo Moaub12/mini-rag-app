@@ -2,6 +2,7 @@ from ..LLMInterface import LLMInterface
 from ..LLMEnums import OpenAIEnums
 from openai import OpenAI
 import logging
+import httpx
 
 class OpenAIProvider(LLMInterface):
 
@@ -12,7 +13,6 @@ class OpenAIProvider(LLMInterface):
         
         self.api_key = api_key
         self.api_url = api_url
-
         self.default_input_max_characters = default_input_max_characters
         self.default_generation_max_output_tokens = default_generation_max_output_tokens
         self.default_generation_temperature = default_generation_temperature
@@ -21,12 +21,13 @@ class OpenAIProvider(LLMInterface):
 
         self.embedding_model_id = None
         self.embedding_size = None
-
         self.client = OpenAI(
             api_key = self.api_key,
-            api_url = self.api_url
-        )
+            # base_url = self.api_url
+                http_client=httpx.Client(proxy=None, timeout=60, trust_env=False)
 
+        )
+        self.enums=OpenAIEnums
         self.logger = logging.getLogger(__name__)
 
     def set_generation_model(self, model_id: str):
@@ -68,7 +69,8 @@ class OpenAIProvider(LLMInterface):
             self.logger.error("Error while generating text with OpenAI")
             return None
 
-        return response.choices[0].message["content"]
+        return response.choices[0].message.content
+
 
 
     def embed_text(self, text: str, document_type: str = None):
